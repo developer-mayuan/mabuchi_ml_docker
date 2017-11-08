@@ -1,0 +1,21 @@
+#!/usr/bin/expect
+eval spawn ./configure
+expect "location of python"
+send "\n"
+expect "optimization flags"
+send "\n"
+expect "jemalloc"
+send "\n"
+expect "Google Cloud Platform"
+send "\n"
+expect "Hadoop File System"
+send "\n"
+expect "XLA just-in-time compiler"
+send "\n"
+expect "Python library path"
+send "\n"
+expect "OpenCL support"
+send "\n"
+expect "CUDA support"
+send "\n"
+interact

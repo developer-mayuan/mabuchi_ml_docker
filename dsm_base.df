@@ -1,0 +1,233 @@
+# An example Dockerfile for installing Git on Ubuntu
+FROM nvidia/cuda:8.0-cudnn5-devel-ubuntu16.04
+
+MAINTAINER "yuan.ma1@huawei.com"
+
+# Set up environment variables
+# ENV
+#
+# Set up Args for version
+# OPENCV_VERSION=3.3.0
+#
+# Set up arguments for libraries version
+# LABEL
+
+# Update package source information 
+RUN apt-get update && apt-get install -y \
+        bc \
+        build-essential \
+        cmake \
+        g++ \
+        gfortran \
+        liblapack-dev \
+        liblapacke-dev \
+        libgtk2.0-dev \
+        libboost-all-dev \
+        libpopt-dev \
+# Install Utilities
+        git \
+        pkg-config \
+        autoconf \
+        automake \
+        libtool \
+        curl \
+        wget \
+        nano \
+        software-properties-common \
+        unzip \
+        vim \
+# Install GUI
+        qt5-default \
+        libvtk6-dev \
+# Install libraies for relasense
+        libusb-1.0.0-dev \
+# Install libraries for Media I/O
+        zlib1g-dev \
+        libjpeg-dev \
+        libwebp-dev \
+        libpng-dev \
+        libtiff5-dev \
+        libjasper-dev \
+        libopenexr-dev \
+        libgdal-dev \
+# Install libraries for Video I/O:
+        libdc1394-22-dev \
+        libavcodec-dev \
+        libavformat-dev \
+        libswscale-dev  \
+        libtheora-dev \
+        libvorbis-dev \
+        libxvidcore-dev \
+        libx264-dev \
+        yasm \
+        libopencore-amrnb-dev \
+        libopencore-amrwb-dev \
+        libv4l-dev \
+        libxine2-dev \
+# Install Parallelism and linear algebra libraries:
+        libtbb-dev \
+        libtbb2 \
+# OpenBLAS
+        libopenblas-dev \
+# Eigen3
+        libeigen3-dev \
+# Install Python libraries:
+        python-tk \
+        python3-tk \
+        python-numpy \
+        python3-dev \
+        python-pip \
+        python-wheel \
+        python3-numpy \
+        python3-dev \
+        python3-pip \
+        python3-wheel \
+        python-virtualenv \
+# Install Java:
+        software-properties-common \
+        swig \
+        ant \
+        default-jdk \
+# Install Documentation tool:
+        doxygen \
+        doxygen-gui \
+        graphviz \
+        texlive \
+        flex \
+        bison \
+        libiconv-hook1 \
+        && \
+# Clean
+    apt-get clean && \
+    apt-get autoremove && \
+    rm -rf /var/lib/apt/lists/* && \
+# Link BLAS
+    update-alternatives --set libblas.so.3 /usr/lib/openblas-base/libblas.so.3 && \
+    pip --no-cache-dir install --upgrade pip
+
+
+# Upgrade pip and other useful Python libraries
+RUN pip --no-cache-dir install --upgrade \
+        ipython \
+        && \
+    pip --no-cache-dir install \
+        Cython \
+        ipykernel \
+        jupyter \
+        path.py \
+        Pillow \
+        pygments \
+        six \
+        sphinx \
+        wheel \
+        zmq \
+        && \
+    python -m ipykernel.kernelspec
+
+
+# Install driver for Basler NIR Camera (not finished)
+# COPY ["./third_parties/pylon-5.0.9.10389-x86_64.tar.gz", "/root"]
+# RUN cd /root && tar xvzf pylon-5.0.9.10389-x86_64.tar.gz -C /root && \
+#     cd /root/pylon-5.0.9.10389-x86_64 && \
+#     tar -C /opt -xzf pylonSDK*.tar.gz && \
+#     echo "yes" | ./setup-usb.sh
+
+
+# Install driver for realsense sensors. Please unplug the realsense snesors before
+
+
+# Install LCM
+RUN cd /root  && wget --no-check-certificate https://github.com/lcm-proj/lcm/releases/download/v1.3.1/lcm-1.3.1.zip && \
+    unzip lcm-1.3.1.zip -d /root/ && \
+    cd /root/lcm-1.3.1 && \
+    ./configure && \
+    make -j $(nproc) && \
+    make install && \
+    ldconfig
+
+# Install the latest Eigen and Protobuf (espeically for TensorFlow)
+
+# Install DLIB
+RUN cd /root && git clone https://github.com/davisking/dlib.git && \
+    cd /root/dlib && mkdir build && cd build && cmake .. && cmake --build . && \
+    cd .. && python setup.py install
+
+# Install OpenCV '3.3.0' for algorithm development [Network download]
+#
+# RUN cd /root && git clone --branch 3.3.0 https://github.com/opencv/opencv.git && \
+#     cd /root && git clone --branch 3.3.0 https://github.com/opencv/opencv_contrib.git && \
+#     cd /root/opencv && \
+#     mkdir release && cd release && \
+#     cmake -DCMAKE_BUILD_TYPE=RELEASE -DWITH_TBB=ON -DBUILD_NEW_PYTHON_SUPPORT=ON -DWITH_V4L=ON -DINSTALL_C_EXAMPLES=ON -DINSTALL_PYTHON_EXAMPLES=ON -DBUILD_EXAMPLES=ON -DWITH_QT=ON -DWITH_OPENGL=ON -DBUILD_FAT_JAVA_LIB=ON -DINSTALL_TO_MANGLED_PATHS=ON -DINSTALL_CREATE_DISTRIB=ON -DINSTALL_TESTS=ON -DENABLE_FAST_MATH=ON -DWITH_IMAGEIO=ON -DBUILD_SHARED_LIBS=OFF -DWITH_GSTREAMER=ON -DOPENCV_EXTRA_MODULES_PATH=../../opencv_contrib/modules .. && \
+#     make -j $(nproc) && make install && \
+#     ldconfig
+
+
+# Copy from host machine
+COPY ["./third_parties/opencv", "/root/opencv/"]
+COPY ["./third_parties/opencv_contrib", "/root/opencv_contrib"]
+
+RUN cd /root/opencv_contrib && git checkout 3.3.0 && \
+    cd /root/opencv && git checkout 3.3.0 && \
+    mkdir release && cd release && \
+    cmake -DCMAKE_BUILD_TYPE=RELEASE -DWITH_TBB=ON -DBUILD_NEW_PYTHON_SUPPORT=ON -DWITH_V4L=ON -DINSTALL_C_EXAMPLES=ON -DINSTALL_PYTHON_EXAMPLES=ON -DBUILD_EXAMPLES=ON -DWITH_QT=ON -DWITH_OPENGL=ON -DBUILD_FAT_JAVA_LIB=ON -DINSTALL_TO_MANGLED_PATHS=ON -DINSTALL_CREATE_DISTRIB=ON -DINSTALL_TESTS=ON -DENABLE_FAST_MATH=ON -DWITH_IMAGEIO=ON -DBUILD_SHARED_LIBS=OFF -DWITH_GSTREAMER=ON -DOPENCV_EXTRA_MODULES_PATH=../../opencv_contrib/modules .. && \
+    make -j $(nproc) && make install && \
+    ldconfig
+
+# Install Bazel for Tensorflow
+RUN apt-get update && apt-get install -y \
+        openjdk-8-jdk \
+        expect && \
+    echo "deb [arch=amd64] http://storage.googleapis.com/bazel-apt stable jdk1.8" | tee /etc/apt/sources.list.d/bazel.list && \
+    curl https://bazel.build/bazel-release.pub.gpg | apt-key add - && \
+    apt-get update && apt-get install -y bazel
+
+# Download Tensorflow [Network Download]
+# RUN cd /root && git clone https://github.com/tensorflow/tensorflow.git && \
+#     cd /root/tensorflow && git checkout v1.1.0
+
+# Use Local copy of tensorflow
+COPY ["./third_parties/tensorflow/", "/root/tensorflow/"]
+COPY ['./third_parties/automation_scripts/tf_auto_config.sh', '/root/tensorflow/']
+
+# Download cmake-tensorflow from github
+RUN cd /root && git clone https://github.com/cjweeks/tensorflow-cmake.git && \
+    echo '\ncc_binary( \
+        name = "libtensorflow_all.so", \n\
+        linkshared = 1, \n\
+        linkopts = ["-Wl,--version-script=tensorflow/tf_version_script.lds"], # Remove this line if you are using MacOS \n\
+        deps = [ \n\
+            "//tensorflow/core:framework_internal", \n\
+            "//tensorflow/core:tensorflow", \n\
+            "//tensorflow/cc:cc_ops", \n\
+            "//tensorflow/cc:client_session", \n\
+            "//tensorflow/cc:scope", \n\
+            "//tensorflow/c:c_api", \n\
+        ], \n\
+    )" >> /root/tensorflow/tensorflow/BUILD && \
+# Build TensorFlow from souce for C++ version
+    cd /root/tensorflow && \
+    chmod a+x /root/tensorflow/auto_config.sh && ./auto_config.sh && \
+    bazel build tensorflow:libtensorflow_all.so && \
+    cp bazel-bin/tensorflow/libtensorflow_all.so /usr/lib && \
+    mkdir -p /usr/include/google/tensorflow && \
+    cp -r tensorflow /usr/include/google/tensorflow/ && \
+    find /usr/include/google/tensorflow/tensorflow -type f ! name "*.h" -delete  && \
+    cp bazel-genfiles/tensorflow/core/framework/*.h  /usr/include/google/tensorflow/tensorflow/core/framework && \
+#    cp bazel-genfiles/tensorflow/core/kernels/*.h  /usr/include/google/tensorflow/tensorflow/core/kernels && \
+    cp bazel-genfiles/tensorflow/core/lib/core/*.h  /usr/include/google/tensorflow/tensorflow/core/lib/core && \
+    cp bazel-genfiles/tensorflow/core/protobuf/*.h  /usr/include/google/tensorflow/tensorflow/core/protobuf && \
+    cp bazel-genfiles/tensorflow/core/util/*.h  /usr/include/google/tensorflow/tensorflow/core/util && \
+    cp bazel-genfiles/tensorflow/cc/ops/*.h  /usr/include/google/tensorflow/tensorflow/cc/ops && \
+    cp -r third_party /usr/include/google/tensorflow/ && \
+    rm -r /usr/include/google/tensorflow/third_party/py && \
+# Note: newer versions of TensorFlow do not have the following directory
+#   sudo rm -r /usr/local/include/google/tensorflow/third_party/avro
+
+
+# Test DLIB (need to build in multiple processes)
+# RUN cd /root/dlib/dlib/test && mkdir build && cd build && cmake .. && \
+# cmake --build . --config Release && ./dtest --runall
+
+# Test OpenCV
+# RUN cd /root && git clone https://github.com/opencv/opencv_extra.git
