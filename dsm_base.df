@@ -170,17 +170,15 @@ COPY ["./third_parties/opencv_contrib", "/root/opencv_contrib"]
 RUN cd /root/opencv_contrib && git checkout 3.3.0 && \
     cd /root/opencv && git checkout 3.3.0 && \
     mkdir release && cd release && \
-    cmake -DCMAKE_BUILD_TYPE=RELEASE -DWITH_TBB=ON -DBUILD_NEW_PYTHON_SUPPORT=ON -DWITH_V4L=ON -DINSTALL_C_EXAMPLES=ON -DINSTALL_PYTHON_EXAMPLES=ON -DBUILD_EXAMPLES=ON -DWITH_QT=ON -DWITH_OPENGL=ON -DBUILD_FAT_JAVA_LIB=ON -DINSTALL_TO_MANGLED_PATHS=ON -DINSTALL_CREATE_DISTRIB=ON -DINSTALL_TESTS=ON -DENABLE_FAST_MATH=ON -DWITH_IMAGEIO=ON -DBUILD_SHARED_LIBS=OFF -DWITH_GSTREAMER=ON -DOPENCV_EXTRA_MODULES_PATH=../../opencv_contrib/modules .. && \
+    cmake -DCMAKE_BUILD_TYPE=RELEASE -DWITH_TBB=ON -DBUILD_NEW_PYTHON_SUPPORT=ON -DWITH_V4L=ON -DINSTALL_C_EXAMPLES=ON -DINSTALL_PYTHON_EXAMPLES=ON -DBUILD_EXAMPLES=ON -DWITH_QT=ON -DWITH_OPENGL=ON -DBUILD_FAT_JAVA_LIB=ON -DINSTALL_TO_MANGLED_PATHS=ON -DINSTALL_CREATE_DISTRIB=ON -DINSTALL_TESTS=ON -DENABLE_FAST_MATH=ON -DWITH_IMAGEIO=ON -DBUILD_SHARED_LIBS=OFF -DWITH_GSTREAMER=ON -DCUDA_CUDA_LIBRARY=/usr/local/cuda-8.0/targets/x86_64-linux/lib/stubs/libcuda.so -DOPENCV_EXTRA_MODULES_PATH=../../opencv_contrib/modules .. && \
     make -j $(nproc) && make install && \
     ldconfig
 
 # Install Bazel for Tensorflow
-RUN apt-get update && apt-get install -y \
-        openjdk-8-jdk \
-        expect && \
-    echo "deb [arch=amd64] http://storage.googleapis.com/bazel-apt stable jdk1.8" | tee /etc/apt/sources.list.d/bazel.list && \
-    curl https://bazel.build/bazel-release.pub.gpg | apt-key add - && \
-    apt-get update && apt-get install -y bazel
+RUN cd /root && wget https://github.com/bazelbuild/bazel/releases/download/0.5.4/bazel-0.5.4-installer-linux-x86_64.sh && \
+    chmod +x bazel-0.5.4-installer-linux-x86_64.sh && \
+    ./bazel-0.5.4-installer-linux-x86_64.sh && \
+    bazel version
 
 # Download Tensorflow [Network Download]
 # RUN cd /root && git clone https://github.com/tensorflow/tensorflow.git && \
@@ -188,41 +186,59 @@ RUN apt-get update && apt-get install -y \
 
 # Use Local copy of tensorflow
 COPY ["./third_parties/tensorflow/", "/root/tensorflow/"]
-COPY ['./third_parties/automation_scripts/tf_auto_config.sh', '/root/tensorflow/']
+COPY ["./third_parties/automation_scripts/tf_auto_config.sh", "/root/tensorflow/"]
 
 # Download cmake-tensorflow from github
 RUN cd /root && git clone https://github.com/cjweeks/tensorflow-cmake.git && \
-    echo '\ncc_binary( \
-        name = "libtensorflow_all.so", \n\
-        linkshared = 1, \n\
-        linkopts = ["-Wl,--version-script=tensorflow/tf_version_script.lds"], # Remove this line if you are using MacOS \n\
-        deps = [ \n\
-            "//tensorflow/core:framework_internal", \n\
-            "//tensorflow/core:tensorflow", \n\
-            "//tensorflow/cc:cc_ops", \n\
-            "//tensorflow/cc:client_session", \n\
-            "//tensorflow/cc:scope", \n\
-            "//tensorflow/c:c_api", \n\
-        ], \n\
-    )" >> /root/tensorflow/tensorflow/BUILD && \
+    echo "\ncc_binary(\n\
+    name = \"libtensorflow_all.so\", \n\
+    linkshared = 1, \n\
+    linkopts = [\"-Wl,--version-script=tensorflow/tf_version_script.lds\"], # Remove this line if you are using MacOS \n\
+    deps = [ \n\
+        \"//tensorflow/core:framework_internal\", \n\
+        \"//tensorflow/core:tensorflow\", \n\
+        \"//tensorflow/cc:cc_ops\", \n\
+        \"//tensorflow/cc:client_session\", \n\
+        \"//tensorflow/cc:scope\", \n\
+        \"//tensorflow/c:c_api\", \n\
+    ], \n\
+)" >> /root/tensorflow/tensorflow/BUILD
+
+RUN cat /root/tensorflow/tensorflow/BUILD
+
+RUN apt-get update && apt-get install -y expect
+
 # Build TensorFlow from souce for C++ version
-    cd /root/tensorflow && \
-    chmod a+x /root/tensorflow/auto_config.sh && ./auto_config.sh && \
-    bazel build tensorflow:libtensorflow_all.so && \
-    cp bazel-bin/tensorflow/libtensorflow_all.so /usr/lib && \
-    mkdir -p /usr/include/google/tensorflow && \
-    cp -r tensorflow /usr/include/google/tensorflow/ && \
-    find /usr/include/google/tensorflow/tensorflow -type f ! name "*.h" -delete  && \
-    cp bazel-genfiles/tensorflow/core/framework/*.h  /usr/include/google/tensorflow/tensorflow/core/framework && \
-#    cp bazel-genfiles/tensorflow/core/kernels/*.h  /usr/include/google/tensorflow/tensorflow/core/kernels && \
-    cp bazel-genfiles/tensorflow/core/lib/core/*.h  /usr/include/google/tensorflow/tensorflow/core/lib/core && \
-    cp bazel-genfiles/tensorflow/core/protobuf/*.h  /usr/include/google/tensorflow/tensorflow/core/protobuf && \
-    cp bazel-genfiles/tensorflow/core/util/*.h  /usr/include/google/tensorflow/tensorflow/core/util && \
-    cp bazel-genfiles/tensorflow/cc/ops/*.h  /usr/include/google/tensorflow/tensorflow/cc/ops && \
-    cp -r third_party /usr/include/google/tensorflow/ && \
-    rm -r /usr/include/google/tensorflow/third_party/py && \
+RUN cd /root/tensorflow && \
+    chmod a+x tf_auto_config.sh && ./tf_auto_config.sh && \
+    bazel build tensorflow:libtensorflow_all.so && cp bazel-bin/tensorflow/libtensorflow_all.so /usr/local/lib
+
+# COPY files
+RUN cd /root/tensorflow && mkdir -p /usr/local/include/google/tensorflow && \
+    cp -r tensorflow /usr/local/include/google/tensorflow && find /usr/local/include/google/tensorflow/tensorflow -type f ! -name "*.h" -delete && \
+    cp bazel-genfiles/tensorflow/core/framework/*.h  /usr/local/include/google/tensorflow/tensorflow/core/framework && \
+#   cp bazel-genfiles/tensorflow/core/kernels/*.h  /usr/local/include/google/tensorflow/tensorflow/core/kernels && \
+    cp bazel-genfiles/tensorflow/core/lib/core/*.h  /usr/local/include/google/tensorflow/tensorflow/core/lib/core && \
+    cp bazel-genfiles/tensorflow/core/protobuf/*.h  /usr/local/include/google/tensorflow/tensorflow/core/protobuf && \
+    cp bazel-genfiles/tensorflow/core/util/*.h  /usr/local/include/google/tensorflow/tensorflow/core/util && \
+    cp bazel-genfiles/tensorflow/cc/ops/*.h  /usr/local/include/google/tensorflow/tensorflow/cc/ops && \
+    cp -r third_party /usr/local/include/google/tensorflow/ && \
+    rm -r /usr/local/include/google/tensorflow/third_party/py
 # Note: newer versions of TensorFlow do not have the following directory
 #   sudo rm -r /usr/local/include/google/tensorflow/third_party/avro
+
+# Reinstall Eigen and Protobuf
+RUN cd /root/tensorflow-cmake && \
+    ./eigen.sh install /root/tensorflow
+# eigen.sh generate installed /root/tensorflow
+
+RUN cd /root/tensorflow-cmake && \
+    ./protobuf.sh install /root/tensorflow
+# protobuf.sh generate installed /root/tensorflow
+
+# RUN protoc -v # check protobuf version
+
+# Delete the installer files
 
 
 # Test DLIB (need to build in multiple processes)

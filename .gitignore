@@ -2,3 +2,4 @@ third_parties/opencv
 third_parties/opencv_contrib
 third_parties/pylon-5.0.9.10389-x86_64.tar.gz
 third_parties/tensorflow
+third_parties/bazel
