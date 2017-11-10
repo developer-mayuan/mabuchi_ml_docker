@@ -38,7 +38,7 @@ RUN apt-get update && apt-get install -y \
         software-properties-common \
         unzip \
         vim \
-        expect
+        expect \
 # Install GUI
         qt5-default \
         libvtk6-dev \
@@ -142,11 +142,11 @@ RUN cd /root && unzip librealsense-master.zip -d /root/ && \
     mv librealsense-master librealsense && \
     cd /root/librealsense && mkdir build && cd build && \
     cmake ../ -DBUILD_EXAMPLES=true && \
-    make -j $(nproc) && make install && \
-    cd /root/librealsense && \
-    cp ./config/99-realsense-libusb.rules /etc/udev/rules.d/ && \
-    udevadm control --reload-rules && udevadm trigger && \
-    ./scripts/patch-realsense-ubuntu-xenial.sh
+    make -j $(nproc) && make install
+# cd /root/librealsense && mkdir /etc/udev/rules.d && \
+# cp ./config/99-realsense-libusb.rules /etc/udev/rules.d/ 
+# udevadm control --reload-rules && udevadm trigger && \
+# ./scripts/patch-realsense-ubuntu-xenial.sh
 
 # Install LCM
 RUN cd /root  && wget --no-check-certificate https://github.com/lcm-proj/lcm/releases/download/v1.3.1/lcm-1.3.1.zip && \
@@ -162,6 +162,7 @@ RUN cd /root  && wget --no-check-certificate https://github.com/lcm-proj/lcm/rel
 # Install DLIB
 RUN cd /root && git clone https://github.com/davisking/dlib.git && \
     cd /root/dlib && mkdir build && cd build && cmake .. && cmake --build . && \
+    make install && ldconfig && \
     cd .. && python setup.py install
 
 # Install OpenCV '3.3.0' for algorithm development [Network download]
@@ -178,8 +179,7 @@ RUN cd /root && git clone https://github.com/davisking/dlib.git && \
 # Copy from host machine
 COPY ["./third_parties/opencv", "/root/opencv/"]
 
-RUN cd /root/opencv_contrib && git checkout 3.3.0 && \
-    cd /root/opencv && git checkout 3.3.0 && \
+RUN cd /root/opencv && git checkout 3.3.0 && \
     mkdir release && cd release && \
     cmake -DCMAKE_BUILD_TYPE=RELEASE -DWITH_TBB=ON -DBUILD_NEW_PYTHON_SUPPORT=ON -DWITH_V4L=ON -DINSTALL_C_EXAMPLES=ON -DINSTALL_PYTHON_EXAMPLES=ON -DBUILD_EXAMPLES=ON -DWITH_QT=ON -DWITH_OPENGL=ON -DBUILD_FAT_JAVA_LIB=ON -DINSTALL_TO_MANGLED_PATHS=ON -DINSTALL_CREATE_DISTRIB=ON -DINSTALL_TESTS=ON -DENABLE_FAST_MATH=ON -DWITH_IMAGEIO=ON -DBUILD_SHARED_LIBS=OFF -DWITH_GSTREAMER=ON -DCUDA_CUDA_LIBRARY=/usr/local/cuda-8.0/targets/x86_64-linux/lib/stubs/libcuda.so .. && \
     make -j $(nproc) && make install && \
@@ -220,7 +220,8 @@ RUN cat /root/tensorflow/tensorflow/BUILD
 # Build TensorFlow from souce for C++ version
 RUN cd /root/tensorflow && \
     chmod a+x tf_auto_config.sh && ./tf_auto_config.sh && \
-    bazel build tensorflow:libtensorflow_all.so && cp bazel-bin/tensorflow/libtensorflow_all.so /usr/local/lib
+    bazel build -c opt --config=cuda tensorflow:libtensorflow_all.so && \
+    cp bazel-bin/tensorflow/libtensorflow_all.so /usr/local/lib
 
 # COPY files
 RUN cd /root/tensorflow && mkdir -p /usr/local/include/google/tensorflow && \

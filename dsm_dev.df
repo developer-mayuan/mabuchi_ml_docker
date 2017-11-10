@@ -2,14 +2,39 @@ FROM huawei/dsm-base:latest
 
 MAINTAINER "yuan.ma1@huawei.com"
 
+RUN apt-get update && apt-get install -y \
+        openssh-server \
+        tcpdump \
+        telnet \
+        byacc \
+        flex \
+        iproute2 \
+        gdbserver \
+        less \
+        bison \
+        valgrind
+
+RUN mkdir /var/run/sshd && echo 'root:root' | chpasswd && \
+    sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
+# SSH login fix. Otherwise user is kicked off after login
+    sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd && \
+    echo "export VISIBLE=now" >> /etc/profile
+
 # COPY DSM source code to the new image
-COPY ["./src/", "/root/dsm/"]
+COPY ["./src", "/root/dsm/src/"]
+
+RUN ls /root/dsm/src/common/cmake/Modules
 
 # Generate eigen cmake file, protobuf cmake file and tensorflow cmake file
 RUN cd /root/tensorflow-cmake && \
     ./eigen.sh generate installed /root/tensorflow /root/dsm/src/common/cmake/Modules && \
     ./protobuf.sh generate installed /root/tensorflow /root/dsm/src/common/cmake/Modules && \
-    cp FindTensorflow.cmake /root/dsm/src/common/cmake/Modules/
+    cp ./FindTensorFlow.cmake /root/dsm/src/common/cmake/Modules/
 
 # Set working dir
-WORKDIR="/root/dsm/src/"
+WORKDIR /root/dsm/src
+
+ENV NOTVISIBLE "in users profile"
+
+EXPOSE 22 9999 7777
+CMD ["/usr/sbin/sshd", "-D"] 
