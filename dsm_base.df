@@ -36,6 +36,7 @@ RUN apt-get update && apt-get install -y \
         software-properties-common \
         unzip \
         vim \
+        expect \
 # Install GUI
         qt5-default \
         libvtk6-dev \
@@ -165,12 +166,11 @@ RUN cd /root && git clone https://github.com/davisking/dlib.git && \
 
 # Copy from host machine
 COPY ["./third_parties/opencv", "/root/opencv/"]
-COPY ["./third_parties/opencv_contrib", "/root/opencv_contrib"]
+# COPY ["./third_parties/opencv_contrib", "/root/opencv_contrib"]
 
-RUN cd /root/opencv_contrib && git checkout 3.3.0 && \
-    cd /root/opencv && git checkout 3.3.0 && \
+RUN cd /root/opencv && git checkout 3.3.0 && \
     mkdir release && cd release && \
-    cmake -DCMAKE_BUILD_TYPE=RELEASE -DWITH_TBB=ON -DBUILD_NEW_PYTHON_SUPPORT=ON -DWITH_V4L=ON -DINSTALL_C_EXAMPLES=ON -DINSTALL_PYTHON_EXAMPLES=ON -DBUILD_EXAMPLES=ON -DWITH_QT=ON -DWITH_OPENGL=ON -DBUILD_FAT_JAVA_LIB=ON -DINSTALL_TO_MANGLED_PATHS=ON -DINSTALL_CREATE_DISTRIB=ON -DINSTALL_TESTS=ON -DENABLE_FAST_MATH=ON -DWITH_IMAGEIO=ON -DBUILD_SHARED_LIBS=OFF -DWITH_GSTREAMER=ON -DCUDA_CUDA_LIBRARY=/usr/local/cuda-8.0/targets/x86_64-linux/lib/stubs/libcuda.so -DOPENCV_EXTRA_MODULES_PATH=../../opencv_contrib/modules .. && \
+    cmake -DCMAKE_BUILD_TYPE=RELEASE -DWITH_TBB=ON -DBUILD_NEW_PYTHON_SUPPORT=ON -DWITH_V4L=ON -DINSTALL_C_EXAMPLES=ON -DINSTALL_PYTHON_EXAMPLES=ON -DBUILD_EXAMPLES=ON -DWITH_QT=ON -DWITH_OPENGL=ON -DBUILD_FAT_JAVA_LIB=ON -DINSTALL_TO_MANGLED_PATHS=ON -DINSTALL_CREATE_DISTRIB=ON -DINSTALL_TESTS=ON -DENABLE_FAST_MATH=ON -DWITH_IMAGEIO=ON -DBUILD_SHARED_LIBS=OFF -DWITH_GSTREAMER=ON -DCUDA_CUDA_LIBRARY=/usr/local/cuda-8.0/targets/x86_64-linux/lib/stubs/libcuda.so .. && \
     make -j $(nproc) && make install && \
     ldconfig
 
@@ -178,7 +178,7 @@ RUN cd /root/opencv_contrib && git checkout 3.3.0 && \
 RUN cd /root && wget https://github.com/bazelbuild/bazel/releases/download/0.5.4/bazel-0.5.4-installer-linux-x86_64.sh && \
     chmod +x bazel-0.5.4-installer-linux-x86_64.sh && \
     ./bazel-0.5.4-installer-linux-x86_64.sh && \
-    bazel version
+    rm bazel-0.5.4-installer-linux-x86_64.sh
 
 # Download Tensorflow [Network Download]
 # RUN cd /root && git clone https://github.com/tensorflow/tensorflow.git && \
@@ -205,8 +205,6 @@ RUN cd /root && git clone https://github.com/cjweeks/tensorflow-cmake.git && \
 )" >> /root/tensorflow/tensorflow/BUILD
 
 RUN cat /root/tensorflow/tensorflow/BUILD
-
-RUN apt-get update && apt-get install -y expect
 
 # Build TensorFlow from souce for C++ version
 RUN cd /root/tensorflow && \
