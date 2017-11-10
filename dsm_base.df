@@ -24,6 +24,8 @@ RUN apt-get update && apt-get install -y \
         libgtk2.0-dev \
         libboost-all-dev \
         libpopt-dev \
+        libglfw3-dev \
+        libssl-dev \
 # Install Utilities
         git \
         pkg-config \
@@ -36,7 +38,7 @@ RUN apt-get update && apt-get install -y \
         software-properties-common \
         unzip \
         vim \
-        expect \
+        expect
 # Install GUI
         qt5-default \
         libvtk6-dev \
@@ -126,16 +128,25 @@ RUN pip --no-cache-dir install --upgrade \
     python -m ipykernel.kernelspec
 
 
-# Install driver for Basler NIR Camera (not finished)
-# COPY ["./third_parties/pylon-5.0.9.10389-x86_64.tar.gz", "/root"]
-# RUN cd /root && tar xvzf pylon-5.0.9.10389-x86_64.tar.gz -C /root && \
-#     cd /root/pylon-5.0.9.10389-x86_64 && \
-#     tar -C /opt -xzf pylonSDK*.tar.gz && \
-#     echo "yes" | ./setup-usb.sh
-
+# Install driver for Basler NIR Camera
+COPY ["./third_parties/basler/pylon-5.0.9.10389-x86_64.tar.gz", "/root/"]
+COPY ["./third_parties/automation_scripts/pylon_auto_install.sh", "/root/"]
+RUN cd /root && tar xvzf pylon-5.0.9.10389-x86_64.tar.gz -C /root && \
+    cd /root/pylon-5.0.9.10389-x86_64 && \
+    tar -C /opt -xzf pylonSDK*.tar.gz && \
+    /root/pylon_auto_install.sh
 
 # Install driver for realsense sensors. Please unplug the realsense snesors before
-
+COPY ["./third_parties/realsense/librealsense-master.zip", "/root/"]
+RUN cd /root && unzip librealsense-master.zip -d /root/ && \
+    mv librealsense-master librealsense && \
+    cd /root/librealsense && mkdir build && cd build && \
+    cmake ../ -DBUILD_EXAMPLES=true && \
+    make -j $(nproc) && make install && \
+    cd /root/librealsense && \
+    cp ./config/99-realsense-libusb.rules /etc/udev/rules.d/ && \
+    udevadm control --reload-rules && udevadm trigger && \
+    ./scripts/patch-realsense-ubuntu-xenial.sh
 
 # Install LCM
 RUN cd /root  && wget --no-check-certificate https://github.com/lcm-proj/lcm/releases/download/v1.3.1/lcm-1.3.1.zip && \
@@ -166,9 +177,9 @@ RUN cd /root && git clone https://github.com/davisking/dlib.git && \
 
 # Copy from host machine
 COPY ["./third_parties/opencv", "/root/opencv/"]
-# COPY ["./third_parties/opencv_contrib", "/root/opencv_contrib"]
 
-RUN cd /root/opencv && git checkout 3.3.0 && \
+RUN cd /root/opencv_contrib && git checkout 3.3.0 && \
+    cd /root/opencv && git checkout 3.3.0 && \
     mkdir release && cd release && \
     cmake -DCMAKE_BUILD_TYPE=RELEASE -DWITH_TBB=ON -DBUILD_NEW_PYTHON_SUPPORT=ON -DWITH_V4L=ON -DINSTALL_C_EXAMPLES=ON -DINSTALL_PYTHON_EXAMPLES=ON -DBUILD_EXAMPLES=ON -DWITH_QT=ON -DWITH_OPENGL=ON -DBUILD_FAT_JAVA_LIB=ON -DINSTALL_TO_MANGLED_PATHS=ON -DINSTALL_CREATE_DISTRIB=ON -DINSTALL_TESTS=ON -DENABLE_FAST_MATH=ON -DWITH_IMAGEIO=ON -DBUILD_SHARED_LIBS=OFF -DWITH_GSTREAMER=ON -DCUDA_CUDA_LIBRARY=/usr/local/cuda-8.0/targets/x86_64-linux/lib/stubs/libcuda.so .. && \
     make -j $(nproc) && make install && \
@@ -178,7 +189,7 @@ RUN cd /root/opencv && git checkout 3.3.0 && \
 RUN cd /root && wget https://github.com/bazelbuild/bazel/releases/download/0.5.4/bazel-0.5.4-installer-linux-x86_64.sh && \
     chmod +x bazel-0.5.4-installer-linux-x86_64.sh && \
     ./bazel-0.5.4-installer-linux-x86_64.sh && \
-    rm bazel-0.5.4-installer-linux-x86_64.sh
+    bazel version
 
 # Download Tensorflow [Network Download]
 # RUN cd /root && git clone https://github.com/tensorflow/tensorflow.git && \

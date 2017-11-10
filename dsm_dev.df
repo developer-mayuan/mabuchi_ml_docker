@@ -1,0 +1,15 @@
+FROM huawei/dsm-base:latest
+
+MAINTAINER "yuan.ma1@huawei.com"
+
+# COPY DSM source code to the new image
+COPY ["./src/", "/root/dsm/"]
+
+# Generate eigen cmake file, protobuf cmake file and tensorflow cmake file
+RUN cd /root/tensorflow-cmake && \
+    ./eigen.sh generate installed /root/tensorflow /root/dsm/src/common/cmake/Modules && \
+    ./protobuf.sh generate installed /root/tensorflow /root/dsm/src/common/cmake/Modules && \
+    cp FindTensorflow.cmake /root/dsm/src/common/cmake/Modules/
+
+# Set working dir
+WORKDIR="/root/dsm/src/"
